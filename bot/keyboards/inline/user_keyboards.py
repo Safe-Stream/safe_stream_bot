@@ -21,40 +21,52 @@ def get_main_menu_inline_keyboard(
     builder.row(
         InlineKeyboardButton(text=_(key="menu_subscribe_inline"),
                              callback_data="main_action:subscribe"))
-    builder.row(
-        InlineKeyboardButton(
-            text=_(key="menu_my_subscription_inline"),
-            callback_data="main_action:my_subscription",
-        )
-    )
 
-    referral_button = InlineKeyboardButton(
-        text=_(key="menu_referral_inline"),
-        callback_data="main_action:referral")
+    # Кнопки "Моя подписка" и "Промокод" в одной строке
+    my_subscription_button = InlineKeyboardButton(
+        text=_(key="menu_my_subscription_inline"),
+        callback_data="main_action:my_subscription")
     promo_button = InlineKeyboardButton(
         text=_(key="menu_apply_promo_button"),
         callback_data="main_action:apply_promo")
-    builder.row(referral_button, promo_button)
+    
+    builder.row(my_subscription_button, promo_button)
 
-    language_button = InlineKeyboardButton(
-        text=_(key="menu_language_settings_inline"),
-        callback_data="main_action:language")
-    status_button_list = []
-    if settings.SERVER_STATUS_URL:
-        status_button_list.append(
-            InlineKeyboardButton(text=_(key="menu_server_status_button"),
-                                 url=settings.SERVER_STATUS_URL))
+    # Кнопки "Инструкции" и "Рефералы" в одной строке
+    instructions_button = InlineKeyboardButton(
+        text=_(key="menu_instructions_button"),
+        callback_data="main_action:instructions")
+    referral_button = InlineKeyboardButton(
+        text=_(key="menu_referral_inline"),
+        callback_data="main_action:referral")
+    
+    builder.row(instructions_button, referral_button)
 
-    if status_button_list:
-        builder.row(language_button, *status_button_list)
-    else:
-        builder.row(language_button)
+    # Кнопка "Язык / Language" в отдельной строке
+    builder.row(
+        InlineKeyboardButton(
+            text="🌐 Язык / Language",
+            callback_data="main_action:language"
+        )
+    )
 
+    # Кнопка "Поддержка" в отдельной строке (если настроена)
     if settings.SUPPORT_LINK:
         builder.row(
-            InlineKeyboardButton(text=_(key="menu_support_button"),
-                                 url=settings.SUPPORT_LINK))
+            InlineKeyboardButton(
+                text=_(key="menu_support_button"),
+                url=settings.SUPPORT_LINK
+            )
+        )
 
+    # Статус сервера (если есть)
+    if settings.SERVER_STATUS_URL:
+        builder.row(
+            InlineKeyboardButton(text=_(key="menu_server_status_button"),
+                                 url=settings.SERVER_STATUS_URL)
+        )
+
+    # Условия использования (если есть)
     if settings.TERMS_OF_SERVICE_URL:
         builder.row(
             InlineKeyboardButton(text=_(key="menu_terms_button"),
@@ -118,9 +130,7 @@ def get_payment_method_keyboard(months: int, price: float,
                                 i18n_instance, settings: Settings) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    if settings.FREEKASSA_ENABLED:
-        builder.button(text=_("pay_with_sbp_button"),
-                       callback_data=f"pay_fk:{months}:{price}")
+
     if settings.YOOKASSA_ENABLED:
         builder.button(text=_("pay_with_yookassa_button"),
                        callback_data=f"pay_yk:{months}:{price}")
@@ -129,6 +139,8 @@ def get_payment_method_keyboard(months: int, price: float,
     if settings.STARS_ENABLED and stars_price is not None:
         builder.button(text=_("pay_with_stars_button"),
                        callback_data=f"pay_stars:{months}:{stars_price}")
+    if getattr(settings, 'GATEWAYPAY_ENABLED', False):
+        builder.button(text=_('pay_with_gatewaypay_button'), callback_data=f"pay_gateway:{months}:{price}")
     if settings.CRYPTOPAY_ENABLED:
         builder.button(text=_("pay_with_cryptopay_button"),
                        callback_data=f"pay_crypto:{months}:{price}")
@@ -260,16 +272,11 @@ def get_referral_link_keyboard(lang: str,
 
 
 def get_back_to_main_menu_markup(lang: str,
-                                 i18n_instance,
-                                 callback_data: Optional[str] = None) -> InlineKeyboardMarkup:
+                                 i18n_instance) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    if callback_data:
-        builder.button(text=_(key="back_to_main_menu_button"),
-                       callback_data=callback_data)
-    else:
-        builder.button(text=_(key="back_to_main_menu_button"),
-                       callback_data="main_action:back_to_main")
+    builder.button(text=_(key="back_to_main_menu_button"),
+                   callback_data="main_action:back_to_main")
     return builder.as_markup()
 
 

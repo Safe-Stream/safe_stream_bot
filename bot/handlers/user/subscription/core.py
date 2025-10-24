@@ -350,14 +350,13 @@ async def my_devices_command_handler(
 
         text = get_text("my_devices_details", devices="\n\n".join(devices_list), current_devices=current_devices, max_devices=max_devices_display)
 
-    base_markup = get_back_to_main_menu_markup(current_lang, i18n, callback_data="main_action:my_subscription")
+    base_markup = get_back_to_main_menu_markup(current_lang, i18n)
     kb = base_markup.inline_keyboard
 
     devices_kb = []
     for index, device in enumerate(devices.get('devices') or [], start=1):
         hwid = device.get('hwid')
         device_button_text = get_text("disconnect_device_button", hwid=hwid, index=index)
-
         devices_kb.append([InlineKeyboardButton(text=device_button_text, callback_data=f"disconnect_device:{hwid}")])
     kb = devices_kb + kb
     markup = InlineKeyboardMarkup(inline_keyboard=kb)

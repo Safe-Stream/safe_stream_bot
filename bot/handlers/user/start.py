@@ -23,7 +23,6 @@ from bot.services.referral_service import ReferralService
 from bot.services.promo_code_service import PromoCodeService
 from config.settings import Settings
 from bot.middlewares.i18n import JsonI18n
-from bot.utils.text_sanitizer import sanitize_username, sanitize_display_name
 
 router = Router(name="user_start_router")
 
@@ -338,17 +337,13 @@ async def start_command_handler(message: types.Message,
         ad_start_param = ad_param_match.group(1)
         logging.info(f"User {user_id} started with ad start param: {ad_start_param}")
 
-    sanitized_username = sanitize_username(user.username)
-    sanitized_first_name = sanitize_display_name(user.first_name)
-    sanitized_last_name = sanitize_display_name(user.last_name)
-
     db_user = await user_dal.get_user_by_id(session, user_id)
     if not db_user:
         user_data_to_create = {
             "user_id": user_id,
-            "username": sanitized_username,
-            "first_name": sanitized_first_name,
-            "last_name": sanitized_last_name,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
             "language_code": current_lang,
             "referred_by_id": referred_by_user_id,
             "registration_date": datetime.now(timezone.utc)
@@ -367,8 +362,8 @@ async def start_command_handler(message: types.Message,
                     notification_service = NotificationService(message.bot, settings, i18n)
                     await notification_service.notify_new_user_registration(
                         user_id=user_id,
-                        username=sanitized_username,
-                        first_name=sanitized_first_name,
+                        username=user.username,
+                        first_name=user.first_name,
                         referred_by_id=referred_by_user_id
                     )
                 except Exception as e:
@@ -393,12 +388,12 @@ async def start_command_handler(message: types.Message,
                 is_active_now = False
             if not is_active_now:
                 update_payload["referred_by_id"] = referred_by_user_id
-        if sanitized_username != db_user.username:
-            update_payload["username"] = sanitized_username
-        if sanitized_first_name != db_user.first_name:
-            update_payload["first_name"] = sanitized_first_name
-        if sanitized_last_name != db_user.last_name:
-            update_payload["last_name"] = sanitized_last_name
+        if user.username != db_user.username:
+            update_payload["username"] = user.username
+        if user.first_name != db_user.first_name:
+            update_payload["first_name"] = user.first_name
+        if user.last_name != db_user.last_name:
+            update_payload["last_name"] = user.last_name
 
         if update_payload:
             try:
@@ -662,8 +657,19 @@ async def main_action_callback_handler(
         await user_trial_handlers.request_trial_confirmation_handler(
             callback, settings, i18n_data, subscription_service, session)
     elif action == "language":
-
         await language_command_handler(callback, i18n_data, settings)
+    elif action == "instructions":
+        i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
+        current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+        _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+        from bot.keyboards.inline.user_keyboards import get_back_to_main_menu_markup
+        text = _(key="instructions_text")
+        reply_markup = get_back_to_main_menu_markup(current_lang, i18n)
+        try:
+            await callback.message.edit_text(text, reply_markup=reply_markup)
+        except Exception:
+            await callback.message.answer(text, reply_markup=reply_markup)
+        await callback.answer()
     elif action == "back_to_main":
         await send_main_menu(callback,
                              settings,
